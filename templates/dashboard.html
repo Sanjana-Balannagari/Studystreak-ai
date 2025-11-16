@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-white p-6 rounded-xl shadow">
-  <h2 class="text-2xl font-bold mb-4">Welcome, {{ current_user.email }}!</h2>
+  <h2 class="text-2xl font-bold mb-4">Your Progress</h2>
   
   <div class="text-center mb-6">
     <h3 id="streak" class="text-4xl font-bold text-green-600">Loading...</h3>
@@ -21,7 +21,9 @@
     </div>
   </div>
 </div>
-
+<div id="progress-section" class="mt-6">
+    <canvas id="progress-chart" height="200"></canvas>
+  </div>
 <script>
 async function loadDashboard() {
   const [streakRes, logsRes] = await Promise.all([
@@ -75,5 +77,35 @@ async function loadDashboard() {
   }
 }
 loadDashboard();
+
+async function loadProgress() {
+    // Existing loadDashboard()...
+    const progressRes = await fetch('/api/progress');
+    const progress = await progressRes.json();
+
+    // Progress Chart
+    const ctx = document.getElementById('progress-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: progress.map(p => p.title),
+        datasets: [{
+          data: progress.map(p => p.progress_percent),
+          backgroundColor: ['#10B981', '#3B82F6', '#F59E0B']
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    // List progress
+    const section = document.getElementById('progress-section');
+    let html = '<h3 class="text-lg font-bold mb-2">Courses Progress</h3><ul>';
+    progress.forEach(p => {
+      html += `<li>${p.title}: ${p.progress_percent}% | Quizzes: ${p.quizzes_taken} (Avg: ${p.avg_score?.toFixed(1) || 0}/10)</li>`;
+    });
+    html += '</ul>';
+    section.innerHTML += html;
+  }
+  loadProgress();
 </script>
 {% endblock %}
