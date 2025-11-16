@@ -75,19 +75,25 @@ def logout():
 @login_required
 def log_session():
     if request.method == 'POST':
-        topic = request.form['topic']
+        # ← FIXED: Read from hidden input (created by JS)
+        topic = request.form.get('topic') or request.form.get('topic_select')
+        if not topic:
+            flash("Please select or enter a topic.")
+            return redirect(url_for('log_session'))
+
+        topic = topic.strip()
         minutes = int(request.form['minutes'])
         log_date = request.form.get('log_date', date.today().isoformat())
-        
+
         db = get_db()
         db.execute(
             "INSERT INTO study_logs (user_id, topic, minutes, log_date) VALUES (?, ?, ?, ?)",
             (current_user.id, topic, minutes, log_date)
         )
         db.commit()
-        flash("Session logged!")
+        flash(f"Logged {minutes} min of {topic}!")
         return redirect(url_for('dashboard'))
-    
+
     return render_template('log.html', today=date.today().isoformat())
 @app.route('/api/streak')
 @login_required
@@ -104,6 +110,84 @@ def api_logs():
         (current_user.id,)
     ).fetchall()
     return jsonify([dict(log) for log in logs])
+
+@app.route('/courses')
+@login_required
+def courses():
+    db = get_db()
+    courses = db.execute("SELECT * FROM courses").fetchall()
+    enrollments = db.execute(
+        "SELECT course_id FROM enrollments WHERE user_id = ?", (current_user.id,)
+    ).fetchall()
+    enrolled_ids = {row['course_id'] for row in enrollments}
+    return render_template('courses.html', courses=courses, enrolled=enrolled_ids)
+
+@app.route('/enroll/<int:course_id>')
+@login_required
+def enroll(course_id):
+    db = get_db()
+    db.execute(
+        "INSERT INTO enrollments (user_id, course_id, enrolled_at) VALUES (?, ?, ?)",
+        (current_user.id, course_id, datetime.now().isoformat())
+    )
+    db.commit()
+    flash("Enrolled! Start learning.")
+    return redirect(url_for('courses'))
+
+# ---------- QUIZZES ----------
+@app.route('/quiz/<int:course_id>')
+@login_required
+def quiz(course_id):
+    db = get_db()
+    quizzes = db.execute(
+        "SELECT * FROM quizzes WHERE course_id = ?", (course_id,)
+    ).fetchall()
+    return render_template('quiz.html', quizzes=quizzes, course_id=course_id)
+
+@app.route('/submit_quiz/<int:course_id>', methods=['POST'])
+@login_required
+def submit_quiz(course_id):
+    db = get_db()
+    score = 0
+    total = 0
+    for row in request.form:
+        if row.startswith('q_'):
+            quiz_id = int(row.split('_')[1])
+            answer = request.form[row]
+            quiz = db.execute("SELECT correct_answer FROM quizzes WHERE id = ?", (quiz_id,)).fetchone()
+            total += 1
+            if answer == quiz['correct_answer']:
+                score += 1
+            # Track weak topics (simple: log if wrong)
+            if answer != quiz['correct_answer']:
+                db.execute(
+                    "INSERT INTO weak_topics (user_id, course_id, topic) VALUES (?, ?, ?)",
+                    (current_user.id, course_id, f"Quiz {quiz_id}")
+                )
+    db.execute(
+        "INSERT INTO quiz_results (user_id, quiz_id, score, completed_at) VALUES (?, ?, ?, ?)",
+        (current_user.id, 0, score, datetime.now().isoformat())  # Aggregate quiz_id=0 for course
+    )
+    db.commit()
+    flash(f"Score: {score}/{total} | Review weak areas!")
+    return redirect(url_for('dashboard'))
+
+# ---------- PROGRESS API ----------
+@app.route('/api/progress')
+@login_required
+def api_progress():
+    db = get_db()
+    progress = db.execute("""
+        SELECT c.title, e.progress_percent, 
+               COUNT(qr.id) as quizzes_taken, AVG(qr.score) as avg_score
+        FROM enrollments e
+        JOIN courses c ON e.course_id = c.id
+        LEFT JOIN quiz_results qr ON e.user_id = qr.user_id
+        WHERE e.user_id = ?
+        GROUP BY c.id
+    """, (current_user.id,)).fetchall()
+    return jsonify([dict(p) for p in progress])
+
 @app.route('/chat', methods=['GET', 'POST'])
 @login_required
 def chat():
@@ -224,4 +308,4 @@ def chat():
     return render_template('chat.html')
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))

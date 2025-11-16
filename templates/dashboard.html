@@ -27,12 +27,12 @@ async function loadDashboard() {
   const [streakRes, logsRes] = await Promise.all([
     fetch('/api/streak'), fetch('/api/logs')
   ]);
-  const streak = await streakRes.json();
+  const {streak} = await streakRes.json();
   const logs = await logsRes.json();
 
-  document.getElementById('streak').innerText = streak.streak + " days 🔥";
+  document.getElementById('streak').innerText = streak + " days 🔥";
 
-  // Heatmap
+  // === HEATMAP (last 7 days) ===
   const ctx = document.getElementById('heatmap').getContext('2d');
   const last7 = Array(7).fill(0);
   const today = new Date();
@@ -51,16 +51,29 @@ async function loadDashboard() {
     options: { responsive: true, scales: { y: { beginAtZero: true } } }
   });
 
-  // Stats
+  // === STATS ===
   const totalMins = logs.reduce((a, b) => a + b.minutes, 0);
   document.getElementById('total-hrs').innerText = (totalMins / 60).toFixed(1);
 
+  // === TOPICS: Group by EXACT topic name (case-sensitive) ===
   const topics = {};
-  logs.forEach(l => topics[l.topic] = (topics[l.topic] || 0) + l.minutes);
-  const top = Object.entries(topics).sort((a,b) => b[1]-a[1])[0];
-  if (top) document.getElementById('top-topic').innerText = `${top[0]} (${Math.round(top[1]/totalMins*100)}%)`;
-}
+  logs.forEach(l => {
+    const topic = l.topic.trim();  // Use exact DB value
+    topics[topic] = (topics[topic] || 0) + l.minutes;
+  });
 
+  // Find top topic
+  const topEntry = Object.entries(topics)
+    .sort((a, b) => b[1] - a[1])[0];
+
+  if (topEntry) {
+    const [topTopic, topMins] = topEntry;
+    const percent = Math.round((topMins / totalMins) * 100);
+    document.getElementById('top-topic').innerText = `${topTopic} (${percent}%)`;
+  } else {
+    document.getElementById('top-topic').innerText = '-';
+  }
+}
 loadDashboard();
 </script>
 {% endblock %}
