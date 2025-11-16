@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+  <h1 class="text-3xl font-bold">Streak: 5 🔥</h1>
+  <div class="flex justify-center gap-1 my-4">
+    <div class="w-8 h-8 bg-green-500 rounded"></div>
+    <div class="w-8 h-8 bg-green-500 rounded"></div>
+    <div class="w-8 h-8 bg-green-500 rounded"></div>
+    <div class="w-8 h-8 bg-green-500 rounded"></div>
+    <div class="w-8 h-8 bg-green-500 rounded"></div>
+    <div class="w-8 h-8 bg-gray-300 rounded"></div>
+    <div class="w-8 h-8 bg-gray-300 rounded"></div>
+  </div>
+  <p>Total: 120 hrs | Top: Python (45%)</p>
+  <a href="#" class="block mt-6 bg-green-600 text-white p-3 rounded">+ Log Session</a>
+  <a href="#" class="block mt-2 bg-indigo-600 text-white p-3 rounded">AI Chat</a>
+  <a href="{{ url_for('logout') }}" class="block mt-6 text-red-600">Logout</a>
+</div>
+{% endblock %}
