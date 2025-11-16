@@ -1,19 +1,66 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="text-center">
-  <h1 class="text-3xl font-bold">Streak: 5 🔥</h1>
-  <div class="flex justify-center gap-1 my-4">
-    <div class="w-8 h-8 bg-green-500 rounded"></div>
-    <div class="w-8 h-8 bg-green-500 rounded"></div>
-    <div class="w-8 h-8 bg-green-500 rounded"></div>
-    <div class="w-8 h-8 bg-green-500 rounded"></div>
-    <div class="w-8 h-8 bg-green-500 rounded"></div>
-    <div class="w-8 h-8 bg-gray-300 rounded"></div>
-    <div class="w-8 h-8 bg-gray-300 rounded"></div>
+<div class="bg-white p-6 rounded-xl shadow">
+  <h2 class="text-2xl font-bold mb-4">Welcome, {{ current_user.email }}!</h2>
+  
+  <div class="text-center mb-6">
+    <h3 id="streak" class="text-4xl font-bold text-green-600">Loading...</h3>
+    <p class="text-gray-600">Current Streak</p>
   </div>
-  <p>Total: 120 hrs | Top: Python (45%)</p>
-  <a href="#" class="block mt-6 bg-green-600 text-white p-3 rounded">+ Log Session</a>
-  <a href="#" class="block mt-2 bg-indigo-600 text-white p-3 rounded">AI Chat</a>
-  <a href="{{ url_for('logout') }}" class="block mt-6 text-red-600">Logout</a>
+
+  <canvas id="heatmap" height="100"></canvas>
+
+  <div class="mt-6 grid grid-cols-2 gap-4 text-center">
+    <div class="bg-gray-50 p-4 rounded">
+      <p class="text-2xl font-bold" id="total-hrs">0</p>
+      <p class="text-sm text-gray-600">Total Hours</p>
+    </div>
+    <div class="bg-gray-50 p-4 rounded">
+      <p class="text-2xl font-bold" id="top-topic">-</p>
+      <p class="text-sm text-gray-600">Top Topic</p>
+    </div>
+  </div>
 </div>
+
+<script>
+async function loadDashboard() {
+  const [streakRes, logsRes] = await Promise.all([
+    fetch('/api/streak'), fetch('/api/logs')
+  ]);
+  const streak = await streakRes.json();
+  const logs = await logsRes.json();
+
+  document.getElementById('streak').innerText = streak.streak + " days 🔥";
+
+  // Heatmap
+  const ctx = document.getElementById('heatmap').getContext('2d');
+  const last7 = Array(7).fill(0);
+  const today = new Date();
+  logs.slice(0, 7).forEach(log => {
+    const logDate = new Date(log.log_date);
+    const diff = Math.floor((today - logDate) / 86400000);
+    if (diff < 7) last7[6 - diff] += log.minutes;
+  });
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['6d', '5d', '4d', '3d', '2d', '1d', 'Today'],
+      datasets: [{ label: 'Minutes', data: last7, backgroundColor: '#10B981' }]
+    },
+    options: { responsive: true, scales: { y: { beginAtZero: true } } }
+  });
+
+  // Stats
+  const totalMins = logs.reduce((a, b) => a + b.minutes, 0);
+  document.getElementById('total-hrs').innerText = (totalMins / 60).toFixed(1);
+
+  const topics = {};
+  logs.forEach(l => topics[l.topic] = (topics[l.topic] || 0) + l.minutes);
+  const top = Object.entries(topics).sort((a,b) => b[1]-a[1])[0];
+  if (top) document.getElementById('top-topic').innerText = `${top[0]} (${Math.round(top[1]/totalMins*100)}%)`;
+}
+
+loadDashboard();
+</script>
 {% endblock %}

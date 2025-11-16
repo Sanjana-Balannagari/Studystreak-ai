@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow max-w-md mx-auto">
+  <h2 class="text-xl font-bold mb-4">Log Study Session</h2>
+  <form method="POST">
+    <label class="block mb-2">Topic</label>
+    <select name="topic" class="w-full p-3 border rounded mb-4" required>
+      <option>Python</option>
+      <option>Machine Learning</option>
+      <option>Web Dev</option>
+      <option>Math</option>
+    </select>
+
+    <label class="block mb-2">Minutes</label>
+    <input type="number" name="minutes" min="1" value="30" 
+           class="w-full p-3 border rounded mb-4" required>
+
+    <label class="block mb-2">Date (optional)</label>
+    <input type="date" name="log_date" value="{{ today }}" 
+           class="w-full p-3 border rounded mb-6">
+
+    <button type="submit" 
+            class="w-full bg-green-600 text-white p-3 rounded font-bold">
+      Log Session
+    </button>
+  </form>
+</div>
+{% endblock %}
