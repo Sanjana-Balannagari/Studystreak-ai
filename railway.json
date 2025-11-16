@@ -4,7 +4,7 @@
   },
   "start": "python app.py",
   "variables": {
-    "OPENAI_API_KEY": "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",
+    "OPENAI_API_KEY": "",
     "FLASK_SECRET_KEY": "prod-secret-123"
   }
 }
