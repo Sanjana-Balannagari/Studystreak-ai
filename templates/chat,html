@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow h-96 overflow-y-auto mb-4" id="chat">
+  <p class="text-gray-500">Ask AI anything: "Log 45 min Python", "Motivate me", "Plan for ML exam"</p>
+</div>
+
+<form method="POST" class="flex gap-2">
+  <input type="text" name="message" placeholder="Type message..." 
+         class="flex-1 p-3 border rounded" required>
+  <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded font-medium">
+    Send
+  </button>
+</form>
+
+{% if bot_reply %}
+  <script>
+    document.getElementById('chat').innerHTML += `<p class="bg-blue-100 p-3 rounded my-2"><strong>AI:</strong> {{ bot_reply }}</p>`;
+  </script>
+{% endif %}
+{% endblock %}

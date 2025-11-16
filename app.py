@@ -104,7 +104,120 @@ def api_logs():
         (current_user.id,)
     ).fetchall()
     return jsonify([dict(log) for log in logs])
+@app.route('/chat', methods=['GET', 'POST'])
+@login_required
+def chat():
+    messages = [{"role": "system", "content": "You are a helpful AI study coach. Use tools when needed."}]
+    
+    if request.method == 'POST':
+        user_msg = request.form['message']
+        messages.append({"role": "user", "content": user_msg})
+        
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "log_study_session",
+                    "description": "Log a study session",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "topic": {"type": "string"},
+                            "minutes": {"type": "integer"}
+                        },
+                        "required": ["topic", "minutes"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_streak_data",
+                    "description": "Get current streak",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_study_plan",
+                    "description": "Create a study plan",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"goal": {"type": "string"}},
+                        "required": ["goal"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_motivation",
+                    "description": "Generate motivation based on streak",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            }
+        ]
 
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto"
+        )
+
+        msg = response.choices[0].message
+        messages.append(msg)
+
+        if msg.tool_calls:
+            for tool in msg.tool_calls:
+                func_name = tool.function.name
+                args = json.loads(tool.function.arguments)
+
+                if func_name == "log_study_session":
+                    db = get_db()
+                    db.execute(
+                        "INSERT INTO study_logs (user_id, topic, minutes, log_date) VALUES (?, ?, ?, ?)",
+                        (current_user.id, args["topic"], args["minutes"], date.today().isoformat())
+                    )
+                    db.commit()
+                    result = f"Logged {args['minutes']} min of {args['topic']}"
+
+                elif func_name == "get_streak_data":
+                    result = f"Current streak: {get_streak(current_user.id)} days"
+
+                elif func_name == "create_study_plan":
+                    db = get_db()
+                    db.execute(
+                        "INSERT INTO study_plans (user_id, goal, created_at) VALUES (?, ?, ?)",
+                        (current_user.id, args["goal"], date.today().isoformat())
+                    )
+                    db.commit()
+                    result = f"Plan created: {args['goal']}"
+
+                elif func_name == "generate_motivation":
+                    streak = get_streak(current_user.id)
+                    result = f"You're on a {streak}-day streak! Keep pushing!"
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool.id,
+                    "name": func_name,
+                    "content": result
+                })
+
+            # Final response
+            final = client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages
+            )
+            bot_reply = final.choices[0].message.content
+        else:
+            bot_reply = msg.content
+
+        return render_template('chat.html', messages=messages, bot_reply=bot_reply)
+
+    return render_template('chat.html')
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
