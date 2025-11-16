@@ -88,8 +88,7 @@ def log_session():
         flash("Session logged!")
         return redirect(url_for('dashboard'))
     
-    return render_template('log.html')
-
+    return render_template('log.html', today=date.today().isoformat())
 @app.route('/api/streak')
 @login_required
 def api_streak():
@@ -225,4 +224,4 @@ def chat():
     return render_template('chat.html')
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)

@@ -17,8 +17,8 @@
            class="w-full p-3 border rounded mb-4" required>
 
     <label class="block mb-2">Date (optional)</label>
-    <input type="date" name="log_date" value="{{ today|default(date.today().isoformat()) }}" 
-           class="w-full p-3 border rounded mb-6">
+    <input type="date" name="log_date" value="{{ today }}" 
+       class="w-full p-3 border rounded mb-6">
 
     <div class="flex gap-2">
       <button type="submit" 
