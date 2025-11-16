@@ -4,6 +4,8 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from db import get_db, init_db
 import hashlib
 import os
+from flask import jsonify
+from datetime import date
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -67,6 +69,41 @@ def dashboard():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/log', methods=['GET', 'POST'])
+@login_required
+def log_session():
+    if request.method == 'POST':
+        topic = request.form['topic']
+        minutes = int(request.form['minutes'])
+        log_date = request.form.get('log_date', date.today().isoformat())
+        
+        db = get_db()
+        db.execute(
+            "INSERT INTO study_logs (user_id, topic, minutes, log_date) VALUES (?, ?, ?, ?)",
+            (current_user.id, topic, minutes, log_date)
+        )
+        db.commit()
+        flash("Session logged!")
+        return redirect(url_for('dashboard'))
+    
+    return render_template('log.html')
+
+@app.route('/api/streak')
+@login_required
+def api_streak():
+    streak = get_streak(current_user.id)
+    return jsonify({"streak": streak})
+
+@app.route('/api/logs')
+@login_required
+def api_logs():
+    db = get_db()
+    logs = db.execute(
+        "SELECT topic, minutes, log_date FROM study_logs WHERE user_id = ? ORDER BY log_date DESC LIMIT 30",
+        (current_user.id,)
+    ).fetchall()
+    return jsonify([dict(log) for log in logs])
 
 if __name__ == '__main__':
     init_db()
