@@ -108,7 +108,11 @@ def api_logs():
 @app.route('/chat', methods=['GET', 'POST'])
 @login_required
 def chat():
-    messages = [{"role": "system", "content": "You are a helpful AI study coach. Use tools when needed."}]
+    messages = [{"role": "system", "content": 
+        "You are StudyStreak AI — a strict, data-driven study coach. "
+        "Always use tools to log, read streak, or create plans. "
+        "Never guess. Be concise and encouraging."
+        }]
     
     if request.method == 'POST':
         user_msg = request.form['message']
