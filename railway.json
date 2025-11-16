@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "paketobuildpacks/builder:base"
+  },
+  "start": "python app.py",
+  "variables": {
+    "OPENAI_API_KEY": "",
+    "FLASK_SECRET_KEY": "prod-secret-123"
+  }
+}

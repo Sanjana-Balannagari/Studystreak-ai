@@ -1,93 +1,18 @@
-# StudyStreak AI
+# React + Vite
 
-**AI-powered study tracker with voice logging, streaks, and personalized plans.**
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Live: https://studystreak-ai.up.railway.app  
-Figma: https://figma.com/...
+Currently, two official plugins are available:
 
----
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Features
+## React Compiler
 
-- **Auth**: Register / Login
-- **Log Sessions**: Form + **Voice Input** (Web Speech API)
-- **Dashboard**: 7-day heatmap, total hrs, top topic (Chart.js)
-- **AI Chat**: 4 tools
-  1. `log_study_session(topic, minutes)`
-  2. `get_streak_data()`
-  3. `create_study_plan(goal)`
-  4. `generate_motivation()`
+The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
 
----
+Note: This will impact Vite dev & build performances.
 
-## Tech Stack
+## Expanding the ESLint configuration
 
-| Layer | Tech |
-|------|------|
-| Backend | Flask, SQLite |
-| Frontend | Tailwind CSS, Chart.js |
-| AI | OpenAI GPT-4o (function calling) |
-| Deploy | Railway |
-
----
-
-## Setup (Local)
-
-```bash
-git clone https://github.com/YOUR-TEAM/studystreak-ai
-cd studystreak-ai
-pip install -r requirements.txt
-echo "OPENAI_API_KEY=sk-..." > .env
-echo "FLASK_SECRET_KEY=dev" >> .env
-python init_db.py
-python app.py
-```
-
-STUDYSTREAK-AI – Phase 1 Kickoff
-Goal: Repo live, roles clear, DB ready
-
-Features (MVP)
-- Auth (Login / Register)
-- Log Session (topic, minutes, date)
-- Dashboard → Streak heatmap (7-day), total hrs, top topic
-- AI Chat → 4 tools:
-   1. log_session(topic, minutes)
-   2. get_streak()
-   3. create_plan(goal)
-   4. generate_motivation()
-
-Bonus (20% creativity): Voice logging via browser mic
-
-Roles
-- Backend Lead: [Name]
-- Frontend/UI Lead: [Name] → Figma + Tailwind
-- AI Specialist: [Name] → OpenAI tools
-- DevOps/Docs Lead: [Name] → GitHub + Railway + Video
-
-Next: Repo setup → Figma → DB init
-
-PHASE 2: CORE MVP (4–5 hrs)
-Goal: Login → Log → Dashboard (streak) → AI Chat (4 tools)
-
-BRANCHES:
-- backend → auth + /log + streak calc
-- frontend → templates + Chart.js
-- ai → OpenAI tools + /chat
-- main ← merge all
-
-TEST: http://localhost:5000
-→ Login → Log 30 min Python → Dashboard shows streak → AI: "Motivate me" → "You're on fire!"
-
-Let’s go!
-PHASE 3: POLISH & DEPLOY (2 hrs)
-Goal: Voice input + Live on Railway + README + Demo
-
-BRANCHES
-├─ ui-voice → Web Speech API for Log page
-├─ deploy   → Railway config + env
-└─ main ← merge all
-
-TEST: https://studystreak-ai.up.railway.app
-→ Login → Hold mic → "Log 45 min Python" → AI confirms → Dashboard updates
-
-Let’s ship!
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

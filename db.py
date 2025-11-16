@@ -1,6 +1,7 @@
 # db.py
 import sqlite3
 from datetime import date
+from datetime import datetime, timedelta
 
 DB_NAME = "studystreak.db"
 
@@ -38,3 +39,24 @@ def init_db():
     conn.commit()
     conn.close()
     print("DB initialized: users, study_logs, study_plans")
+
+def get_streak(user_id):
+    db = get_db()
+    logs = db.execute(
+        "SELECT log_date FROM study_logs WHERE user_id = ? ORDER BY log_date DESC",
+        (user_id,)
+    ).fetchall()
+    
+    if not logs:
+        return 0
+    
+    dates = {row["log_date"] for row in logs}
+    today = date.today().isoformat()
+    streak = 0
+    check_date = today
+    
+    while check_date in dates:
+        streak += 1
+        check_date = (datetime.fromisoformat(check_date) - timedelta(days=1)).date().isoformat()
+    
+    return streak
