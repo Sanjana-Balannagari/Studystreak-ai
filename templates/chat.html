@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow h-96 overflow-y-auto mb-4" id="chat">
+  {% if messages %}
+    {% for msg in messages %}
+      {% if msg.role == 'user' %}
+        <p class="bg-green-100 p-3 rounded my-2"><strong>You:</strong> {{ msg.content }}</p>
+      {% elif msg.role == 'assistant' %}
+        <p class="bg-blue-100 p-3 rounded my-2"><strong>AI:</strong> {{ msg.content }}</p>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <p class="text-gray-500">Ask AI anything: "Log 45 min Python", "Motivate me", "Plan for ML exam"</p>
+  {% endif %}
+</div>
+
+<form method="POST" class="flex gap-2">
+  <input type="text" name="message" placeholder="Type message..." 
+         class="flex-1 p-3 border rounded" required>
+  <button type="submit" class="bg-indigo-600 text-white px-6 py-3 rounded font-medium">
+    Send
+  </button>
+</form>
+{% endblock %}

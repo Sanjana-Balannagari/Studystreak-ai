@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bg-white p-6 rounded-xl shadow max-w-md mx-auto">
+  <h2 class="text-xl font-bold mb-4">Log Study Session</h2>
+  
+  <form method="POST" id="logForm">
+    <label class="block mb-2">Topic</label>
+    <select name="topic" id="topic" class="w-full p-3 border rounded mb-4" required>
+      <option>Python</option>
+      <option>Machine Learning</option>
+      <option>Web Dev</option>
+      <option>Math</option>
+    </select>
+
+    <label class="block mb-2">Minutes</label>
+    <input type="number" name="minutes" id="minutes" min="1" value="30" 
+           class="w-full p-3 border rounded mb-4" required>
+
+    <label class="block mb-2">Date (optional)</label>
+    <input type="date" name="log_date" value="{{ today|default(date.today().isoformat()) }}" 
+           class="w-full p-3 border rounded mb-6">
+
+    <div class="flex gap-2">
+      <button type="submit" 
+              class="flex-1 bg-green-600 text-white p-3 rounded font-bold">
+        Log Session
+      </button>
+      <button type="button" id="voiceBtn" 
+              class="bg-blue-600 text-white p-3 rounded font-bold flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+        Speak
+      </button>
+    </div>
+  </form>
+
+  <p id="transcript" class="mt-4 text-sm text-gray-600"></p>
+</div>
+
+<script>
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.lang = 'en-US';
+recognition.interimResults = false;
+
+document.getElementById('voiceBtn').addEventListener('click', () => {
+  document.getElementById('voiceBtn').innerHTML = `Listening...`;
+  recognition.start();
+});
+
+recognition.onresult = (event) => {
+  const transcript = event.results[0][0].transcript.toLowerCase();
+  document.getElementById('transcript').innerText = `Heard: "${transcript}"`;
+
+  // Parse: "log 45 min python", "studied 30 minutes math"
+  const match = transcript.match(/(\d+)\s*(min|minute|mins|minutes)?\s*(.+)/i);
+  if (match) {
+    const minutes = match[1];
+    let topic = match[3].trim();
+    topic = topic.charAt(0).toUpperCase() + topic.slice(1);
+
+    // Set form
+    document.getElementById('minutes').value = minutes;
+    const select = document.getElementById('topic');
+    for (let opt of select.options) {
+      if (opt.text.includes(topic)) {
+        opt.selected = true;
+        break;
+      }
+    }
+
+    // Auto-submit
+    setTimeout(() => document.getElementById('logForm').submit(), 800);
+  } else {
+    document.getElementById('transcript').innerText = `Try: "Log 45 min Python"`;
+  }
+};
+
+recognition.onerror = () => {
+  document.getElementById('voiceBtn').innerHTML = `Speak`;
+};
+recognition.onend = () => {
+  document.getElementById('voiceBtn').innerHTML = `Speak`;
+};
+</script>
+{% endblock %}

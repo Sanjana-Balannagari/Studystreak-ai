@@ -1,16 +1,18 @@
-# app.py
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from db import get_db, init_db
+from db import get_db, init_db, get_streak
 import hashlib
 import os
+import json
+from openai import OpenAI
+from datetime import date
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
@@ -24,6 +26,21 @@ def load_user(user_id):
     db = get_db()
     user = db.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
     return User(user["id"], user["email"]) if user else None
+
+# Badge logic based on streak
+def get_badge(streak):
+    if streak >= 100:
+        return "Legendary 🔥"
+    elif streak >= 30:
+        return "Diamond 💎"
+    elif streak >= 14:
+        return "Gold 🥇"
+    elif streak >= 7:
+        return "Silver 🥈"
+    elif streak >= 3:
+        return "Bronze 🥉"
+    else:
+        return None
 
 @app.route('/')
 def index():
@@ -60,7 +77,9 @@ def register():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', user=current_user)
+    streak = get_streak(current_user.id)
+    badge = get_badge(streak)
+    return render_template('dashboard.html', user=current_user, streak=streak, badge=badge)
 
 @app.route('/logout')
 @login_required
@@ -68,6 +87,178 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/log', methods=['GET', 'POST'])
+@login_required
+def log_session():
+    if request.method == 'POST':
+        topic = request.form['topic']
+        minutes = int(request.form['minutes'])
+        log_date = request.form.get('log_date', date.today().isoformat())
+        
+        db = get_db()
+        db.execute(
+            "INSERT INTO study_logs (user_id, topic, minutes, log_date) VALUES (?, ?, ?, ?)",
+            (current_user.id, topic, minutes, log_date)
+        )
+        db.commit()
+        flash("Session logged!")
+        return redirect(url_for('dashboard'))
+    
+    return render_template('log.html')
+
+@app.route('/api/streak')
+@login_required
+def api_streak():
+    streak = get_streak(current_user.id)
+    return jsonify({"streak": streak})
+
+@app.route('/api/logs')
+@login_required
+def api_logs():
+    db = get_db()
+    logs = db.execute(
+        "SELECT topic, minutes, log_date FROM study_logs WHERE user_id = ? ORDER BY log_date DESC LIMIT 30",
+        (current_user.id,)
+    ).fetchall()
+    return jsonify([dict(log) for log in logs])
+
+@app.route('/chat', methods=['GET', 'POST'])
+@login_required
+def chat():
+    messages = [{"role": "system", "content": 
+        "You are StudyStreak AI — a strict, data-driven study coach. "
+        "Always use tools to log, read streak, or create plans. "
+        "Never guess. Be concise and encouraging."
+        }]
+    
+    if request.method == 'POST':
+        user_msg = request.form['message']
+        messages.append({"role": "user", "content": user_msg})
+        
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "log_study_session",
+                    "description": "Log a study session",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "topic": {"type": "string"},
+                            "minutes": {"type": "integer"}
+                        },
+                        "required": ["topic", "minutes"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_streak_data",
+                    "description": "Get current streak",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_study_plan",
+                    "description": "Create a study plan",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"goal": {"type": "string"}},
+                        "required": ["goal"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_motivation",
+                    "description": "Generate motivation based on streak",
+                    "parameters": {"type": "object", "properties": {}, "required": []}
+                }
+            }
+        ]
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto"
+        )
+
+        msg = response.choices[0].message
+        messages.append(msg)
+
+        if msg.tool_calls:
+            for tool in msg.tool_calls:
+                func_name = tool.function.name
+                args = json.loads(tool.function.arguments)
+
+                if func_name == "log_study_session":
+                    db = get_db()
+                    db.execute(
+                        "INSERT INTO study_logs (user_id, topic, minutes, log_date) VALUES (?, ?, ?, ?)",
+                        (current_user.id, args["topic"], args["minutes"], date.today().isoformat())
+                    )
+                    db.commit()
+                    result = f"Logged {args['minutes']} min of {args['topic']}"
+
+                elif func_name == "get_streak_data":
+                    result = f"Current streak: {get_streak(current_user.id)} days"
+
+                elif func_name == "create_study_plan":
+                    db = get_db()
+                    db.execute(
+                        "INSERT INTO study_plans (user_id, goal, created_at) VALUES (?, ?, ?)",
+                        (current_user.id, args["goal"], date.today().isoformat())
+                    )
+                    db.commit()
+                    result = f"Plan created: {args['goal']}"
+
+                elif func_name == "generate_motivation":
+                    streak = get_streak(current_user.id)
+                    result = f"You're on a {streak}-day streak! Keep pushing!"
+
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool.id,
+                    "name": func_name,
+                    "content": result
+                })
+
+            # Final response
+            final = client.chat.completions.create(
+                model="gpt-4o",
+                messages=messages
+            )
+            bot_reply = final.choices[0].message.content
+        else:
+            bot_reply = msg.content
+
+        return render_template('chat.html', messages=messages, bot_reply=bot_reply)
+
+    return render_template('chat.html')
+
+# FAQ route
+@app.route('/faq')
+def faq():
+    faqs = [
+        {"question": "What is StudyStreak AI?", "answer": "It is a study tracker and AI coach..."},
+        {"question": "How do I log a study session?", "answer": "Go to the Log page..."},
+        {"question": "What are streaks?", "answer": "Streaks are consecutive days of studying..."},
+        {"question": "How do badges work?", "answer": "Badges are awarded based on streak milestones..."},
+        {"question": "Can I see my progress visually?", "answer": "Yes, the dashboard shows a calendar heatmap..."},
+        {"question": "Is my data safe?", "answer": "Your logs are stored securely..."},
+        {"question": "Does the AI give study plans?", "answer": "Yes, you can ask the AI to create personalized study plans..."},
+        {"question": "Can I reset my streak?", "answer": "Streaks reset automatically if you miss a day."},
+        {"question": "Which topics can I track?", "answer": "You can log any topic you like."}
+    ]
+    return render_template('faq.html', faqs=faqs)
+
+
+
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
