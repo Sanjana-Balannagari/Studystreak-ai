@@ -1,10 +1,11 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from db import get_db, init_db
+from db import get_db, init_db, get_streak
 import hashlib
 import os
-from flask import jsonify
+import json
+from openai import OpenAI
 from datetime import date
 from dotenv import load_dotenv
 
@@ -12,7 +13,7 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
